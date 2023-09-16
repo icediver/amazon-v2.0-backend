@@ -1,9 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
-import { returnUserObject } from './dto/return-user.object';
-import { Prisma } from '@prisma/client';
-import { UserDto } from './dto/user.dto';
-import { hash } from 'argon2';
+import {
+	BadRequestException,
+	Injectable,
+	NotFoundException
+} from '@nestjs/common'
+import { PrismaService } from 'src/prisma.service'
+import { returnUserObject } from './dto/return-user.object'
+import { Prisma } from '@prisma/client'
+import { UserDto } from './dto/user.dto'
+import { hash } from 'argon2'
 
 @Injectable()
 export class UserService {
@@ -21,65 +25,70 @@ export class UserService {
 						name: true,
 						price: true,
 						images: true,
-						slug: true
+						slug: true,
+						category: {
+							select: {
+								slug: true
+							}
+						},
+						reviews: true
 					}
 				},
 				...selectObject
 			}
-		});
+		})
 
 		if (!user) {
-			throw new Error('User not found');
+			throw new Error('User not found')
 		}
 
-		return user;
+		return user
 	}
 
-    async updateProfile(id: number, dto: UserDto) {
-       const isSameUser = await this.prisma.user.findUnique({
-           where: {email: dto.email}
-       })
+	async updateProfile(id: number, dto: UserDto) {
+		const isSameUser = await this.prisma.user.findUnique({
+			where: { email: dto.email }
+		})
 
-       if (isSameUser && id !== isSameUser.id) throw new BadRequestException('Email already in use')
-        
-        const user = await this.byId(id)
+		if (isSameUser && id !== isSameUser.id)
+			throw new BadRequestException('Email already in use')
 
+		const user = await this.byId(id)
 
+		return this.prisma.user.update({
+			where: {
+				id
+			},
+			data: {
+				email: dto.email,
+				name: dto.name,
+				avatarPath: dto.avatarPath,
+				phone: dto.phone,
+				password: dto.password ? await hash(dto.password) : user.password
+			}
+		})
+	}
 
-        return this.prisma.user.update({
-            where: {
-                id
-            }, 
-            data: {
-                email: dto.email,
-                name: dto.name,
-                avatarPath:dto.avatarPath,
-                phone: dto.phone,
-                password: dto.password ? await hash(dto.password) : user.password
-            }
-        }) 
-    }
+	async toggleFavorite(userId: number, productId: number) {
+		const user = await this.byId(userId)
 
-    async toggleFavorite( userId: number, productId: number) {
-        const user = await this.byId(userId)
+		if (!user) throw new NotFoundException('User not found')
 
-        if(!user) throw new NotFoundException('User not found')
+		const isExists = user.favorites.some(product => product.id === productId)
 
-        const isExists = user.favorites.some(product => product.id === productId)
+		await this.prisma.user.update({
+			where: {
+				id: user.id
+			},
+			data: {
+				favorites: {
+					[isExists ? 'disconnect' : 'connect']: {
+						id: productId
+					}
+				}
+			}
+		})
 
-        await this.prisma.user.update({
-            where: {
-                id: user.id
-            },
-            data: {
-                favorites: {
-                    [isExists ? 'disconnect' : 'connect'] : {
-                        id: productId 
-                    }
-                }
-            }
-        })
-
-        return {message: 'Success'}
-    }
+		return { message: 'Success' }
+	}
 }
