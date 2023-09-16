@@ -3,7 +3,6 @@ import { PrismaService } from 'src/prisma.service'
 import { productReturnObject } from 'src/product/return-product.object'
 import { OrderDto } from './dto/order.dto'
 import * as YooKassa from 'yookassa'
-import { faker } from '@faker-js/faker'
 import { PaymentStatusDto } from './dto/payment-status.dto'
 import { EnumOrderStatus } from '@prisma/client'
 const yooKassa = new YooKassa({
@@ -15,7 +14,23 @@ const yooKassa = new YooKassa({
 export class OrderService {
 	constructor(private prisma: PrismaService) {}
 
-	async getAll(userId: number) {
+	async getAll() {
+		return this.prisma.order.findMany({
+			orderBy: {
+				createdAt: 'desc'
+			},
+			include: {
+				items: {
+					include: {
+						product: {
+							select: productReturnObject
+						}
+					}
+				}
+			}
+		})
+	}
+	async getByUserId(userId: number) {
 		return this.prisma.order.findMany({
 			where: {
 				userId
