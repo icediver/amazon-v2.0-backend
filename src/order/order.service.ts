@@ -95,8 +95,6 @@ export class OrderService {
 		if (dto.event === 'payment.succeeded') {
 			const orderId = Number(dto.object.description.split('#')[1])
 
-			console.log(dto.object.description)
-
 			await this.prisma.order.update({
 				where: {
 					id: orderId
